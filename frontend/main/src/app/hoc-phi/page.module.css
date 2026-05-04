@@ -1,0 +1,329 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% -10%, rgba(78, 119, 255, 0.16), transparent 44%),
+    linear-gradient(180deg, #f2f5fb 0%, #eef2f9 48%, #f6f8fc 100%);
+  padding: 102px 16px 48px;
+}
+
+.container {
+  margin: 0 auto;
+  width: min(1200px, 100%);
+}
+
+.heroCard {
+  border: 1px solid #d4ddf2;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #e8edf9 0%, #f5f2fa 100%);
+  padding: 30px 24px;
+  text-align: center;
+  box-shadow: 0 20px 44px rgba(39, 73, 138, 0.1);
+}
+
+.heroTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: #dbe7ff;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2658bd;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  margin: 0;
+  color: #0f2b66;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.heroTitle span {
+  color: #2057d4;
+}
+
+.heroDescription {
+  margin: 14px auto 0;
+  max-width: 700px;
+  color: #4a5f8f;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.pricingGrid {
+  margin-top: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.planCard {
+  border: 1px solid #d8e2f7;
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(24, 54, 122, 0.08);
+}
+
+.planCardHighlight {
+  border-color: #2d5fd0;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(34, 84, 197, 0.18);
+}
+
+.planHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.planHeader h2 {
+  margin: 0;
+  color: #1e438f;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.planBadge {
+  border-radius: 999px;
+  background: #2557c8;
+  color: #ffffff;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.planPrice {
+  margin: 12px 0;
+  color: #1644a3;
+  font-size: clamp(32px, 5vw, 42px);
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.planPrice span {
+  margin-left: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #6379aa;
+}
+
+.planList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.planList li {
+  position: relative;
+  padding-left: 18px;
+  color: #3d5382;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.planList li::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+}
+
+.planButton {
+  margin-top: 16px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: #e4eeff;
+  padding: 11px 14px;
+  color: #1948a8;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.planCardHighlight .planButton {
+  background: #1f56c9;
+  color: #ffffff;
+}
+
+.planButton:hover {
+  transform: translateY(-1px);
+}
+
+.valueSection {
+  margin-top: 22px;
+  border: 1px solid #d8e0f1;
+  border-radius: 18px;
+  background: #f8fbff;
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.valueSection h2 {
+  margin: 0;
+  color: #243d74;
+  font-size: clamp(26px, 3.2vw, 34px);
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.valueSection h2 span {
+  color: #1953c8;
+}
+
+.valueSection p {
+  margin: 10px 0 0;
+  color: #4f618f;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.valueSection ul {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: #3f5685;
+  font-size: 14px;
+  line-height: 1.65;
+  display: grid;
+  gap: 6px;
+}
+
+.valueMedia {
+  position: relative;
+  overflow: hidden;
+  min-height: 250px;
+  border-radius: 14px;
+  border: 1px solid #d8e2f9;
+  box-shadow: 0 16px 30px rgba(36, 66, 132, 0.14);
+}
+
+.valueMedia img {
+  object-fit: cover;
+}
+
+.ctaSection {
+  position: relative;
+  overflow: hidden;
+  margin-top: 22px;
+  border-radius: 18px;
+  background: linear-gradient(140deg, #144bc8 0%, #1f5de0 56%, #2d73ef 100%);
+  padding: 30px 22px;
+  text-align: center;
+  color: #ffffff;
+}
+
+.ctaSection::before,
+.ctaSection::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.ctaSection::before {
+  width: 220px;
+  height: 220px;
+  right: -100px;
+  bottom: -120px;
+}
+
+.ctaSection::after {
+  width: 180px;
+  height: 180px;
+  left: -120px;
+  top: -110px;
+}
+
+.ctaSection h2,
+.ctaSection p,
+.ctaActions {
+  position: relative;
+  z-index: 1;
+}
+
+.ctaSection h2 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.ctaSection p {
+  margin: 10px auto 0;
+  max-width: 640px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.ctaActions {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ctaPrimary,
+.ctaSecondary {
+  border-radius: 999px;
+  padding: 11px 20px;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.ctaPrimary {
+  background: #ef3349;
+  color: #ffffff;
+}
+
+.ctaSecondary {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}
+
+.ctaPrimary:hover,
+.ctaSecondary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+@media (min-width: 840px) {
+  .page {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .pricingGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .valueSection {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: stretch;
+  }
+
+  .heroCard {
+    padding: 40px 36px;
+  }
+}
