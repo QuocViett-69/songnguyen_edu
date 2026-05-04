@@ -11,6 +11,20 @@ type FastifyValidationIssue = {
   params?: unknown;
 };
 
+type JwtErrorLike = {
+  code?: string;
+};
+
+function isJwtError(error: unknown): error is JwtErrorLike {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof (error as JwtErrorLike).code === "string" &&
+      (error as JwtErrorLike).code?.startsWith("FST_JWT_")
+  );
+}
+
 function isFastifyValidationError(error: unknown): error is {
   validation: FastifyValidationIssue[];
 } {
@@ -33,6 +47,18 @@ export function registerErrorHandler(app: FastifyInstance): void {
           code: error.code,
           message: error.message,
           details: error.details,
+        },
+      });
+      return;
+    }
+
+    if (isJwtError(error)) {
+      void reply.status(401).send({
+        success: false,
+        error: {
+          code: ErrorCodes.AUTH_REQUIRED,
+          message: "Authentication required",
+          details: null,
         },
       });
       return;
