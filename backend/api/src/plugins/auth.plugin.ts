@@ -19,9 +19,14 @@ export const registerAuth = fp(async (app: FastifyInstance) => {
     }
   });
 
-  app.decorate("requireRole", (request: FastifyRequest, role: UserRole) => {
-    if (!request.user || request.user.role !== role) {
-      throw new AppError("FORBIDDEN", 403, "Insufficient permission");
-    }
-  });
+  app.decorate(
+    "requireRole",
+    (request: FastifyRequest, role: UserRole | UserRole[]) => {
+      const acceptedRoles = Array.isArray(role) ? role : [role];
+
+      if (!request.user || !acceptedRoles.includes(request.user.role)) {
+        throw new AppError("FORBIDDEN", 403, "Insufficient permission");
+      }
+    },
+  );
 });

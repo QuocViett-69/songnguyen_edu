@@ -9,13 +9,14 @@ import {
   AdminListPaymentsQuerySchema,
   AdminListTutorsQuerySchema,
   AssignClassBodySchema,
+  ConfirmPaymentBodySchema,
   ConvertRequestBodySchema,
   CreateClassBodySchema,
   IdParamSchema,
+  RejectPaymentBodySchema,
   RejectRequestBodySchema,
   RejectTutorBodySchema,
   UpdateClassBodySchema,
-  UpdatePaymentStatusBodySchema,
 } from "./admin.schema.js";
 
 function getActor(request: FastifyRequest): { id: string; email: string } {
@@ -34,6 +35,14 @@ export async function dashboardHandler(
   reply: FastifyReply,
 ): Promise<void> {
   const result = await adminService.getDashboard();
+  void reply.send(success(result));
+}
+
+export async function dashboardStatsHandler(
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const result = await adminService.getDashboardStats();
   void reply.send(success(result));
 }
 
@@ -217,7 +226,7 @@ export async function confirmPaymentHandler(
   reply: FastifyReply,
 ): Promise<void> {
   const { id } = IdParamSchema.parse(request.params);
-  const body = UpdatePaymentStatusBodySchema.parse(request.body);
+  const body = ConfirmPaymentBodySchema.parse(request.body);
   const result = await adminService.confirmPayment(
     getActor(request),
     id,
@@ -231,11 +240,11 @@ export async function rejectPaymentHandler(
   reply: FastifyReply,
 ): Promise<void> {
   const { id } = IdParamSchema.parse(request.params);
-  const body = UpdatePaymentStatusBodySchema.parse(request.body);
+  const body = RejectPaymentBodySchema.parse(request.body);
   const result = await adminService.rejectPayment(
     getActor(request),
     id,
-    body.note,
+    body.note ?? body.reason,
   );
   void reply.send(success(result));
 }

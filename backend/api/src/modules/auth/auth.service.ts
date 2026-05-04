@@ -4,7 +4,7 @@ import { AppError } from "../../common/errors/AppError.js";
 import { comparePassword } from "../../common/utils/password.js";
 import { env } from "../../config/env.js";
 import { prisma } from "../../config/prisma.js";
-import { redis } from "../../config/redis.js";
+import { buildCacheKey, cacheService } from "../../services/cache.service.js";
 import type { AuthUser, TokenPayload, UserRole } from "./auth.types.js";
 
 type AuthSession = {
@@ -30,7 +30,7 @@ function parseDurationToSeconds(duration: string): number {
 }
 
 function refreshTokenKey(refreshToken: string): string {
-  return `auth:refresh:${refreshToken}`;
+  return buildCacheKey("auth:refresh", refreshToken);
 }
 
 async function createSession(
@@ -59,10 +59,9 @@ async function createSession(
     { expiresIn: env.JWT_REFRESH_EXPIRES },
   );
 
-  await redis.set(
+  await cacheService.set(
     refreshTokenKey(refreshToken),
     JSON.stringify({ userId: user.id, role: user.role }),
-    "EX",
     parseDurationToSeconds(env.JWT_REFRESH_EXPIRES),
   );
 
@@ -103,7 +102,7 @@ export const authService = {
 
     return createSession(app, {
       id: admin.id,
-      role: "ADMIN",
+      role: admin.role,
       email: admin.email,
       fullName: admin.fullName,
     });
@@ -168,7 +167,7 @@ export const authService = {
       throw new AppError("INVALID_REFRESH_TOKEN", 401, "Invalid refresh token");
     }
 
-    const exists = await redis.exists(refreshTokenKey(refreshToken));
+    const exists = await cacheService.exists(refreshTokenKey(refreshToken));
 
     if (!exists) {
       throw new AppError(
@@ -194,12 +193,12 @@ export const authService = {
   async revokeRefreshToken(
     refreshToken: string,
   ): Promise<{ revoked: boolean }> {
-    const deleted = await redis.del(refreshTokenKey(refreshToken));
+    const deleted = await cacheService.del(refreshTokenKey(refreshToken));
     return { revoked: deleted > 0 };
   },
 
   async getCurrentUser(payload: TokenPayload): Promise<AuthUser | null> {
-    if (payload.role === "ADMIN") {
+    if (payload.role === "ADMIN" || payload.role === "SUPERADMIN") {
       const admin = await prisma.admin.findUnique({
         where: { id: payload.sub },
       });
@@ -210,7 +209,7 @@ export const authService = {
 
       return {
         id: admin.id,
-        role: "ADMIN",
+        role: admin.role,
         email: admin.email,
         fullName: admin.fullName,
       };

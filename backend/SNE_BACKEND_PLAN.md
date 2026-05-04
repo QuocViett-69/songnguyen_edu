@@ -1,4 +1,5 @@
 # SNE — Backend System Design Plan
+
 > Tài liệu tổng hợp: thiết kế toàn hệ thống, stack quyết định, roadmap thực thi.
 > Owner: Backend + Admin FE
 > Phạm vi: Backend core (80%) + Admin FE vận hành (20%)
@@ -7,22 +8,22 @@
 
 ## 1. Stack quyết định
 
-| Layer | Công nghệ | Lý do |
-|-------|-----------|-------|
-| **Backend runtime** | Node.js 20 LTS | Stable, LTS support |
-| **HTTP framework** | **Fastify 4** | 2-3x nhanh hơn Express, schema-first, plugin ecosystem tốt |
-| **ORM** | **Prisma 5** | Type-safe, migration tốt, relation query rõ ràng |
-| **Database** | **PostgreSQL 16** | Array type cho subjects/grades/districts, ACID transaction |
-| **Auth** | **JWT** (jsonwebtoken) + **bcrypt** | Access token 15m + Refresh token 7d lưu Redis |
-| **Cache / Token store** | **Redis** (Upstash trên prod) | Lưu refresh token, upload token, rate limit |
-| **File storage** | **Cloudinary** | Free tier đủ dùng, SDK đơn giản, URL transform |
-| **Email** | **Resend** | API-first, free 3k email/tháng, template HTML dễ |
-| **Validation** | **Zod** | Type inference tốt, tích hợp Fastify schema |
-| **Admin FE** | **Next.js 14** App Router | SSR + RSC, fetch trực tiếp từ API |
-| **Admin UI** | **shadcn/ui** + **TailwindCSS** | Không cần design system riêng |
-| **Deploy BE** | **Railway** | Auto-deploy từ Git, Postgres + Redis addon sẵn |
-| **Deploy FE** | **Vercel** | Zero-config Next.js |
-| **API Docs** | **Scalar** (thay Swagger UI) | Tích hợp Fastify, UI đẹp hơn |
+| Layer                   | Công nghệ                           | Lý do                                                      |
+| ----------------------- | ----------------------------------- | ---------------------------------------------------------- |
+| **Backend runtime**     | Node.js 20 LTS                      | Stable, LTS support                                        |
+| **HTTP framework**      | **Fastify 4**                       | 2-3x nhanh hơn Express, schema-first, plugin ecosystem tốt |
+| **ORM**                 | **Prisma 5**                        | Type-safe, migration tốt, relation query rõ ràng           |
+| **Database**            | **PostgreSQL 16**                   | Array type cho subjects/grades/districts, ACID transaction |
+| **Auth**                | **JWT** (jsonwebtoken) + **bcrypt** | Access token 15m + Refresh token 7d lưu Redis              |
+| **Cache / Token store** | **Redis** (Upstash trên prod)       | Lưu refresh token, upload token, rate limit                |
+| **File storage**        | **Cloudinary**                      | Free tier đủ dùng, SDK đơn giản, URL transform             |
+| **Email**               | **Resend**                          | API-first, free 3k email/tháng, template HTML dễ           |
+| **Validation**          | **Zod**                             | Type inference tốt, tích hợp Fastify schema                |
+| **Admin FE**            | **Next.js 14** App Router           | SSR + RSC, fetch trực tiếp từ API                          |
+| **Admin UI**            | **shadcn/ui** + **TailwindCSS**     | Không cần design system riêng                              |
+| **Deploy BE**           | **Railway**                         | Auto-deploy từ Git, Postgres + Redis addon sẵn             |
+| **Deploy FE**           | **Vercel**                          | Zero-config Next.js                                        |
+| **API Docs**            | **Scalar** (thay Swagger UI)        | Tích hợp Fastify, UI đẹp hơn                               |
 
 ---
 
@@ -63,6 +64,7 @@ Router (Fastify route)
 ```
 
 Quy tắc cứng:
+
 - Handler **không** gọi Prisma trực tiếp
 - Service **không** biết về HTTP request/response
 - Mọi lỗi business logic → throw `AppError` (custom class)
@@ -176,18 +178,18 @@ model AuditLog {
 
 **Các action cần log:**
 
-| action | targetType | Khi nào |
-|--------|-----------|---------|
-| `APPROVE_TUTOR` | TUTOR | Admin duyệt gia sư |
-| `REJECT_TUTOR` | TUTOR | Admin từ chối gia sư |
-| `CREATE_CLASS` | CLASS | Admin tạo lớp |
-| `UPDATE_CLASS` | CLASS | Admin sửa lớp |
-| `CLOSE_CLASS` | CLASS | Admin đóng lớp |
-| `CONVERT_REQUEST` | CLASS_REQUEST | Admin chuyển yêu cầu PH thành lớp |
-| `REJECT_REQUEST` | CLASS_REQUEST | Admin từ chối yêu cầu PH |
-| `ASSIGN_CLASS` | CLASS_ASSIGNMENT | Admin phân lớp cho gia sư |
-| `CONFIRM_PAYMENT` | PAYMENT | Admin xác nhận thanh toán |
-| `REJECT_PAYMENT` | PAYMENT | Admin từ chối bill |
+| action            | targetType       | Khi nào                           |
+| ----------------- | ---------------- | --------------------------------- |
+| `APPROVE_TUTOR`   | TUTOR            | Admin duyệt gia sư                |
+| `REJECT_TUTOR`    | TUTOR            | Admin từ chối gia sư              |
+| `CREATE_CLASS`    | CLASS            | Admin tạo lớp                     |
+| `UPDATE_CLASS`    | CLASS            | Admin sửa lớp                     |
+| `CLOSE_CLASS`     | CLASS            | Admin đóng lớp                    |
+| `CONVERT_REQUEST` | CLASS_REQUEST    | Admin chuyển yêu cầu PH thành lớp |
+| `REJECT_REQUEST`  | CLASS_REQUEST    | Admin từ chối yêu cầu PH          |
+| `ASSIGN_CLASS`    | CLASS_ASSIGNMENT | Admin phân lớp cho gia sư         |
+| `CONFIRM_PAYMENT` | PAYMENT          | Admin xác nhận thanh toán         |
+| `REJECT_PAYMENT`  | PAYMENT          | Admin từ chối bill                |
 
 ### 4.2 Enums (giữ nguyên từ thiết kế cũ)
 
@@ -240,90 +242,96 @@ CREATE INDEX audit_logs_target_idx   ON audit_logs(target_type, target_id);
 
 ### AUTH `/api/v1/auth`
 
-| Method | Path | Auth | Mô tả |
-|--------|------|------|-------|
-| POST | `/admin/login` | Public | Admin đăng nhập → accessToken + refreshToken |
-| POST | `/tutor/login` | Public | Tutor đăng nhập (chỉ APPROVED) |
-| POST | `/refresh` | Public | Đổi refreshToken → accessToken mới |
-| POST | `/logout` | JWT | Revoke refreshToken khỏi Redis |
-| GET | `/me` | JWT | Trả thông tin user đang đăng nhập |
+| Method | Path           | Auth   | Mô tả                                        |
+| ------ | -------------- | ------ | -------------------------------------------- |
+| POST   | `/admin/login` | Public | Admin đăng nhập → accessToken + refreshToken |
+| POST   | `/tutor/login` | Public | Tutor đăng nhập (chỉ APPROVED)               |
+| POST   | `/refresh`     | Public | Đổi refreshToken → accessToken mới           |
+| POST   | `/logout`      | JWT    | Revoke refreshToken khỏi Redis               |
+| GET    | `/me`          | JWT    | Trả thông tin user đang đăng nhập            |
 
 ---
 
 ### PUBLIC `/api/v1/public`
 
-| Method | Path | Auth | Mô tả |
-|--------|------|------|-------|
-| GET | `/classes` | Public | Danh sách lớp OPEN, filter: subject/grade/district/minFee/maxFee |
-| GET | `/classes/:id` | Public | Chi tiết lớp OPEN |
-| GET | `/tutors` | Public | Danh sách gia sư tiêu biểu (APPROVED, chỉ fields public) |
-| POST | `/class-requests` | Public | Phụ huynh gửi yêu cầu tìm gia sư |
-| POST | `/tutors/register` | Public | Gia sư đăng ký hồ sơ bước 1 → trả uploadToken |
-| POST | `/tutors/:id/documents` | uploadToken | Upload CCCD + bằng cấp bước 2 |
+| Method | Path                    | Auth        | Mô tả                                                            |
+| ------ | ----------------------- | ----------- | ---------------------------------------------------------------- |
+| GET    | `/classes`              | Public      | Danh sách lớp OPEN, filter: subject/grade/district/minFee/maxFee |
+| GET    | `/classes/:id`          | Public      | Chi tiết lớp OPEN                                                |
+| GET    | `/tutors`               | Public      | Danh sách gia sư tiêu biểu (APPROVED, chỉ fields public)         |
+| POST   | `/class-requests`       | Public      | Phụ huynh gửi yêu cầu tìm gia sư                                 |
+| POST   | `/tutors/register`      | Public      | Gia sư đăng ký hồ sơ bước 1 → trả uploadToken                    |
+| POST   | `/tutors/:id/documents` | uploadToken | Upload CCCD + bằng cấp bước 2                                    |
 
 ---
 
 ### TUTOR `/api/v1/tutor` — yêu cầu JWT + status=APPROVED
 
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/profile` | Xem hồ sơ cá nhân |
-| PATCH | `/profile` | Cập nhật bio, subjects, districts, experience |
-| GET | `/classes` | Danh sách lớp OPEN kèm myApplication status |
-| POST | `/classes/:classId/apply` | Đăng ký nhận lớp |
-| DELETE | `/classes/:classId/apply` | Huỷ đăng ký (chỉ khi PENDING) |
-| GET | `/applications` | Danh sách lớp đã đăng ký + trạng thái |
-| POST | `/payments` | Upload bill chuyển khoản (multipart) |
-| GET | `/payments` | Lịch sử thanh toán |
+| Method | Path                      | Mô tả                                         |
+| ------ | ------------------------- | --------------------------------------------- |
+| GET    | `/profile`                | Xem hồ sơ cá nhân                             |
+| PATCH  | `/profile`                | Cập nhật bio, subjects, districts, experience |
+| GET    | `/classes`                | Danh sách lớp OPEN kèm myApplication status   |
+| POST   | `/classes/:classId/apply` | Đăng ký nhận lớp                              |
+| DELETE | `/classes/:classId/apply` | Huỷ đăng ký (chỉ khi PENDING)                 |
+| GET    | `/applications`           | Danh sách lớp đã đăng ký + trạng thái         |
+| POST   | `/payments`               | Upload bill chuyển khoản (multipart)          |
+| GET    | `/payments`               | Lịch sử thanh toán                            |
 
 ---
 
 ### ADMIN `/api/v1/admin` — yêu cầu JWT + role=ADMIN
 
 #### Dashboard
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/dashboard` | Stats + recent activity |
+
+| Method | Path         | Mô tả                   |
+| ------ | ------------ | ----------------------- |
+| GET    | `/dashboard` | Stats + recent activity |
 
 #### Quản lý gia sư
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/tutors` | Danh sách, filter: status/search/subject |
-| GET | `/tutors/:id` | Chi tiết + URLs giấy tờ + stats |
-| PATCH | `/tutors/:id/approve` | Duyệt → tạo account + gửi email mật khẩu |
-| PATCH | `/tutors/:id/reject` | Từ chối + lý do |
+
+| Method | Path                  | Mô tả                                    |
+| ------ | --------------------- | ---------------------------------------- |
+| GET    | `/tutors`             | Danh sách, filter: status/search/subject |
+| GET    | `/tutors/:id`         | Chi tiết + URLs giấy tờ + stats          |
+| PATCH  | `/tutors/:id/approve` | Duyệt → tạo account + gửi email mật khẩu |
+| PATCH  | `/tutors/:id/reject`  | Từ chối + lý do                          |
 
 #### Quản lý yêu cầu phụ huynh
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/class-requests` | Danh sách, filter: status |
-| GET | `/class-requests/:id` | Chi tiết |
-| POST | `/class-requests/:id/convert` | Chuyển thành lớp (transaction) |
-| PATCH | `/class-requests/:id/reject` | Từ chối + lý do |
+
+| Method | Path                          | Mô tả                          |
+| ------ | ----------------------------- | ------------------------------ |
+| GET    | `/class-requests`             | Danh sách, filter: status      |
+| GET    | `/class-requests/:id`         | Chi tiết                       |
+| POST   | `/class-requests/:id/convert` | Chuyển thành lớp (transaction) |
+| PATCH  | `/class-requests/:id/reject`  | Từ chối + lý do                |
 
 #### Quản lý lớp học
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/classes` | Danh sách, filter: status/subject/district |
-| POST | `/classes` | Tạo lớp trực tiếp |
-| GET | `/classes/:id` | Chi tiết + sourceRequest + assignment |
-| PATCH | `/classes/:id` | Sửa (chỉ OPEN/ASSIGNED) |
-| PATCH | `/classes/:id/close` | Đóng lớp |
-| GET | `/classes/:id/applicants` | DS gia sư đăng ký |
-| POST | `/classes/:id/assign` | Phân lớp (ACID transaction) |
+
+| Method | Path                      | Mô tả                                      |
+| ------ | ------------------------- | ------------------------------------------ |
+| GET    | `/classes`                | Danh sách, filter: status/subject/district |
+| POST   | `/classes`                | Tạo lớp trực tiếp                          |
+| GET    | `/classes/:id`            | Chi tiết + sourceRequest + assignment      |
+| PATCH  | `/classes/:id`            | Sửa (chỉ OPEN/ASSIGNED)                    |
+| PATCH  | `/classes/:id/close`      | Đóng lớp                                   |
+| GET    | `/classes/:id/applicants` | DS gia sư đăng ký                          |
+| POST   | `/classes/:id/assign`     | Phân lớp (ACID transaction)                |
 
 #### Quản lý thanh toán
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/payments` | Danh sách, filter: status |
-| GET | `/payments/:id` | Chi tiết + ảnh bill |
-| PATCH | `/payments/:id/confirm` | Xác nhận |
-| PATCH | `/payments/:id/reject` | Từ chối + lý do |
+
+| Method | Path                    | Mô tả                     |
+| ------ | ----------------------- | ------------------------- |
+| GET    | `/payments`             | Danh sách, filter: status |
+| GET    | `/payments/:id`         | Chi tiết + ảnh bill       |
+| PATCH  | `/payments/:id/confirm` | Xác nhận                  |
+| PATCH  | `/payments/:id/reject`  | Từ chối + lý do           |
 
 #### Audit log
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/audit-logs` | Lịch sử thao tác admin, filter: action/targetType/actorId |
+
+| Method | Path          | Mô tả                                                     |
+| ------ | ------------- | --------------------------------------------------------- |
+| GET    | `/audit-logs` | Lịch sử thao tác admin, filter: action/targetType/actorId |
 
 ---
 
@@ -379,6 +387,193 @@ prisma.$transaction([
 
 ---
 
+## 6.1 Business flow chi tiet (de check va bao tri)
+
+Ghi chu chung:
+
+- Trang thai tham chieu: TutorStatus, ClassStatus, ApplicationStatus, RequestStatus, PaymentStatus.
+- Moi flow ghi ro diem kiem tra, trang thai thay doi, log, email.
+
+### Flow A — Phu huynh gui yeu cau tim gia su (Public)
+
+**Muc dich:** tao class request de Admin xu ly.
+
+**Pre-check:** khong can token (PUBLIC).
+
+**Steps:**
+
+1. Public mo form gui yeu cau: `POST /public/class-requests`.
+2. Validate input: parentName, parentPhone, subject, grade, district (optional: budgetPerHour, note).
+3. Tao record `class_requests` voi status = PENDING.
+4. Tra response `{ created: true }`.
+
+**Ket qua:** RequestStatus = PENDING.
+
+**Audit/Email:** chua can log, chua gui email.
+
+---
+
+### Flow B — Gia su dang ky ho so (Public -> Admin)
+
+**Muc dich:** tao ho so gia su cho Admin duyet.
+
+**Pre-check:** PUBLIC.
+
+**Steps:**
+
+1. Gia su dang ky buoc 1: `POST /public/tutors/register`.
+2. Validate thong tin ca nhan (fullName, email, phone, password, subjects, districts).
+3. Tao record tutor voi status = PENDING.
+4. Tra `tutorId` + `uploadToken`.
+5. Gia su upload giay to: `POST /public/tutors/:id/documents` (uploadToken).
+6. Luu danh sach documents vao tutor_documents.
+
+**Ket qua:** TutorStatus = PENDING (cho duyet).
+
+**Audit/Email:** chua can log, chua gui email.
+
+---
+
+### Flow C — Admin duyet / tu choi gia su
+
+**Muc dich:** kich hoat tai khoan gia su va thong bao ket qua.
+
+**Pre-check:** ADMIN.
+
+**Steps (Approve):**
+
+1. Admin xem danh sach: `GET /admin/tutors?status=PENDING`.
+2. Mo chi tiet: `GET /admin/tutors/:id`.
+3. Duyet: `PATCH /admin/tutors/:id/approve`.
+4. TX1 chay (generate temp password, update tutor, audit log).
+5. Sau TX: gui email mat khau tam.
+
+**Steps (Reject):**
+
+1. Admin chon tu choi: `PATCH /admin/tutors/:id/reject` + reason.
+2. Update tutor -> status = REJECTED.
+3. Tao audit log.
+4. Gui email thong bao tu choi.
+
+**Ket qua:** TutorStatus = APPROVED hoac REJECTED.
+
+---
+
+### Flow D — Admin xu ly yeu cau PH thanh lop hoc
+
+**Muc dich:** tao lop tu request, mo cho gia su ung tuyen.
+
+**Pre-check:** ADMIN.
+
+**Steps:**
+
+1. Admin xem danh sach request: `GET /admin/class-requests?status=PENDING`.
+2. Xem chi tiet: `GET /admin/class-requests/:id`.
+3. Convert: `PATCH /admin/class-requests/:id/convert` + classData.
+4. TX2 chay (tao class, update request, audit log).
+
+**Ket qua:** RequestStatus = CONVERTED, ClassStatus = OPEN.
+
+---
+
+### Flow E — Gia su xem lop va ung tuyen
+
+**Muc dich:** gia su ung tuyen nhan lop.
+
+**Pre-check:** TUTOR + status = APPROVED.
+
+**Steps:**
+
+1. Danh sach lop mo: `GET /tutor/classes`.
+2. Ung tuyen: `POST /tutor/classes/:classId/apply` (optional note).
+3. Tao record `class_applications` voi status = PENDING.
+4. Neu muon huy: `DELETE /tutor/classes/:classId/apply` (chi cho PENDING).
+
+**Ket qua:** ApplicationStatus = PENDING hoac CANCELLED.
+
+---
+
+### Flow F — Admin phan lop cho gia su
+
+**Muc dich:** chon gia su phu hop va khoa lop.
+
+**Pre-check:** ADMIN.
+
+**Steps:**
+
+1. Admin vao lop: `GET /admin/classes/:id`.
+2. Xem danh sach ung tuyen: `GET /admin/classes/:id/applicants`.
+3. Phan lop: `POST /admin/classes/:id/assign` + tutorId.
+4. TX3 chay (create assignment, update applications, update class, audit log).
+5. Sau TX: gui email thong bao cho gia su duoc chon.
+
+**Ket qua:** ClassStatus = ASSIGNED, selected ApplicationStatus = ACCEPTED, others = REJECTED.
+
+---
+
+### Flow G — Gia su nop bill thanh toan, Admin xac nhan
+
+**Muc dich:** xac nhan giao dich thanh toan.
+
+**Pre-check:** TUTOR (nop bill), ADMIN (xac nhan).
+
+**Steps (Tutor):**
+
+1. Gia su nop bill: `POST /tutor/payments` (amount, billImageUrl, classId, note).
+2. Tao record payment voi status = PENDING.
+
+**Steps (Admin):**
+
+1. Admin xem danh sach: `GET /admin/payments?status=PENDING`.
+2. Xem chi tiet: `GET /admin/payments/:id`.
+3. Xac nhan: `PATCH /admin/payments/:id/confirm`.
+4. Hoac tu choi: `PATCH /admin/payments/:id/reject` + reason.
+5. Tao audit log cho action.
+
+**Ket qua:** PaymentStatus = CONFIRMED hoac REJECTED.
+
+---
+
+### Flow H — Admin tao / sua / dong lop
+
+**Muc dich:** quan ly lop hoc trong he thong.
+
+**Pre-check:** ADMIN.
+
+**Steps:**
+
+1. Tao lop: `POST /admin/classes` (status = OPEN) + audit log.
+2. Cap nhat lop: `PATCH /admin/classes/:id` (chi khi OPEN/ASSIGNED) + audit log.
+3. Dong lop: `PATCH /admin/classes/:id/close` (status = CLOSED) + audit log.
+
+**Ket qua:** ClassStatus thay doi theo thao tac.
+
+---
+
+### Flow I — Public xem lop / gia su
+
+**Muc dich:** public browsing.
+
+**Steps:**
+
+1. Xem lop: `GET /public/classes` (filter theo subject/grade/district).
+2. Xem chi tiet lop: `GET /public/classes/:id`.
+3. Xem gia su: `GET /public/tutors`.
+
+**Ket qua:** khong thay doi du lieu.
+
+---
+
+### Checklist chung de bao tri
+
+1. Moi thay doi trang thai phai co ly do ro rang (reject, close).
+2. Moi thao tac admin co audit_log.
+3. Cac transaction (TX1, TX2, TX3) chay atomic, neu loi phai rollback.
+4. Email chi la side-effect, khong duoc lam fail transaction.
+5. Log error phai day du de truy vet (action, targetId, actorId).
+
+---
+
 ## 7. Phân quyền (RBAC)
 
 ```
@@ -391,11 +586,12 @@ Fastify hook thực hiện:
 
 ```typescript
 // preHandler hook cho từng route group
-fastify.addHook('preHandler', async (request, reply) => {
-  await request.jwtVerify()                    // verify JWT
-  if (request.user.role !== 'ADMIN')          // check role
-    throw Errors.forbidden()
-})
+fastify.addHook("preHandler", async (request, reply) => {
+  await request.jwtVerify(); // verify JWT
+  if (request.user.role !== "ADMIN")
+    // check role
+    throw Errors.forbidden();
+});
 ```
 
 ---
@@ -408,14 +604,14 @@ Mọi thao tác write của admin đều ghi log. Gọi cuối mỗi transaction
 // src/services/auditLog.service.ts
 
 async function createAuditLog(params: {
-  actorId:    string
-  actorName:  string
-  action:     string
-  targetType: string
-  targetId:   string
-  payload?:   object
+  actorId: string;
+  actorName: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  payload?: object;
 }) {
-  await prisma.auditLog.create({ data: params })
+  await prisma.auditLog.create({ data: params });
 }
 ```
 
@@ -426,21 +622,26 @@ async function createAuditLog(params: {
 ```typescript
 // src/services/email.service.ts
 
-const resend = new Resend(config.resend.apiKey)
+const resend = new Resend(config.resend.apiKey);
 
 async function sendEmail(to: string, subject: string, html: string) {
   try {
-    await resend.emails.send({ from: 'SNE <no-reply@sne.vn>', to, subject, html })
+    await resend.emails.send({
+      from: "SNE <no-reply@sne.vn>",
+      to,
+      subject,
+      html,
+    });
   } catch (err) {
-    console.error('[Email] Failed:', err) // không throw — email là side effect
+    console.error("[Email] Failed:", err); // không throw — email là side effect
   }
 }
 
 // 4 templates:
-sendTutorApproved(to, fullName, tempPassword)
-sendTutorRejected(to, fullName, reason)
-sendClassAssigned(to, fullName, classInfo)
-sendClassRejected(to, fullName, classInfo)
+sendTutorApproved(to, fullName, tempPassword);
+sendTutorRejected(to, fullName, reason);
+sendClassAssigned(to, fullName, classInfo);
+sendClassRejected(to, fullName, classInfo);
 ```
 
 ---
@@ -448,24 +649,26 @@ sendClassRejected(to, fullName, classInfo)
 ## 10. Roadmap thực thi
 
 ### Giai đoạn 1 — Foundation (Tuần 1)
+
 **Mục tiêu:** Server chạy được, DB có dữ liệu, auth hoạt động.
 
-| Task | File | Ước tính |
-|------|------|---------|
-| Setup Fastify project, tsconfig, package.json | root | 2h |
-| `config/env.ts` — validate env với Zod | config/ | 1h |
-| `config/prisma.ts` + `config/redis.ts` | config/ | 1h |
-| `prisma/schema.prisma` — 8 models (thêm audit_logs) | prisma/ | 1h |
-| `prisma migrate dev` + `prisma/seed.ts` | prisma/ | 2h |
-| `plugins/auth.plugin.ts` — JWT fastify-jwt | plugins/ | 1h |
-| `plugins/cors, rateLimit, multipart, scalar` | plugins/ | 2h |
-| `common/errors/` — AppError, errorCodes, errorHandler | common/ | 2h |
-| `common/utils/` — response, pagination, password | common/ | 1h |
-| `modules/auth/` — login admin/tutor, refresh, logout, me | modules/auth/ | 3h |
-| `server.ts` + `app.ts` | root | 1h |
-| **Kiểm tra:** health check + 5 auth endpoints | — | 1h |
+| Task                                                     | File          | Ước tính |
+| -------------------------------------------------------- | ------------- | -------- |
+| Setup Fastify project, tsconfig, package.json            | root          | 2h       |
+| `config/env.ts` — validate env với Zod                   | config/       | 1h       |
+| `config/prisma.ts` + `config/redis.ts`                   | config/       | 1h       |
+| `prisma/schema.prisma` — 8 models (thêm audit_logs)      | prisma/       | 1h       |
+| `prisma migrate dev` + `prisma/seed.ts`                  | prisma/       | 2h       |
+| `plugins/auth.plugin.ts` — JWT fastify-jwt               | plugins/      | 1h       |
+| `plugins/cors, rateLimit, multipart, scalar`             | plugins/      | 2h       |
+| `common/errors/` — AppError, errorCodes, errorHandler    | common/       | 2h       |
+| `common/utils/` — response, pagination, password         | common/       | 1h       |
+| `modules/auth/` — login admin/tutor, refresh, logout, me | modules/auth/ | 3h       |
+| `server.ts` + `app.ts`                                   | root          | 1h       |
+| **Kiểm tra:** health check + 5 auth endpoints            | —             | 1h       |
 
 **Checklist giai đoạn 1:**
+
 - [ ] `GET /health` → 200
 - [ ] `POST /auth/admin/login` → tokens
 - [ ] `POST /auth/tutor/login` (APPROVED) → tokens
@@ -478,20 +681,22 @@ sendClassRejected(to, fullName, classInfo)
 ---
 
 ### Giai đoạn 2 — Admin core (Tuần 2)
+
 **Mục tiêu:** Admin có thể duyệt gia sư, quản lý lớp, phân lớp.
 
-| Task | File | Ước tính |
-|------|------|---------|
-| `services/upload.service.ts` — Cloudinary | services/ | 2h |
-| `services/email.service.ts` + 4 templates | services/ | 3h |
-| `services/auditLog.service.ts` | services/ | 1h |
-| `modules/admin/admin.schema.ts` — Zod schemas | admin/ | 2h |
-| `modules/admin/admin.service.ts` — tất cả business logic | admin/ | 8h |
-| `modules/admin/admin.handler.ts` | admin/ | 3h |
-| `modules/admin/admin.route.ts` — mount tất cả routes | admin/ | 1h |
-| **Kiểm tra:** 22 admin endpoints | — | 2h |
+| Task                                                     | File      | Ước tính |
+| -------------------------------------------------------- | --------- | -------- |
+| `services/upload.service.ts` — Cloudinary                | services/ | 2h       |
+| `services/email.service.ts` + 4 templates                | services/ | 3h       |
+| `services/auditLog.service.ts`                           | services/ | 1h       |
+| `modules/admin/admin.schema.ts` — Zod schemas            | admin/    | 2h       |
+| `modules/admin/admin.service.ts` — tất cả business logic | admin/    | 8h       |
+| `modules/admin/admin.handler.ts`                         | admin/    | 3h       |
+| `modules/admin/admin.route.ts` — mount tất cả routes     | admin/    | 1h       |
+| **Kiểm tra:** 22 admin endpoints                         | —         | 2h       |
 
 **Checklist giai đoạn 2:**
+
 - [ ] `GET /admin/dashboard` → đúng stats
 - [ ] `GET /admin/tutors?status=PENDING` → list
 - [ ] `PATCH /admin/tutors/:id/approve` → email gửi + status=APPROVED
@@ -507,15 +712,17 @@ sendClassRejected(to, fullName, classInfo)
 ---
 
 ### Giai đoạn 3 — Public + Tutor (Tuần 3)
+
 **Mục tiêu:** Gia sư đăng ký được, xem lớp, apply, upload bill.
 
-| Task | File | Ước tính |
-|------|------|---------|
-| `modules/public/` — 6 endpoints | public/ | 5h |
-| `modules/tutor/` — 8 endpoints | tutor/ | 5h |
-| Test end-to-end full flow | — | 3h |
+| Task                            | File    | Ước tính |
+| ------------------------------- | ------- | -------- |
+| `modules/public/` — 6 endpoints | public/ | 5h       |
+| `modules/tutor/` — 8 endpoints  | tutor/  | 5h       |
+| Test end-to-end full flow       | —       | 3h       |
 
 **Checklist giai đoạn 3:**
+
 - [ ] Phụ huynh gửi yêu cầu → admin thấy
 - [ ] Gia sư đăng ký → upload CCCD → admin duyệt → email có mật khẩu
 - [ ] Gia sư login → xem lớp → apply → admin phân → email thông báo
@@ -524,23 +731,25 @@ sendClassRejected(to, fullName, classInfo)
 ---
 
 ### Giai đoạn 4 — Admin FE (Tuần 4)
+
 **Mục tiêu:** Giao diện đủ dùng để vận hành thật, không cần đẹp.
 
-| Màn hình | Route Next.js | Ưu tiên |
-|----------|--------------|---------|
-| Login | `/login` | P0 |
-| Dashboard tổng quan | `/dashboard` | P0 |
-| Danh sách gia sư | `/tutors` | P0 |
-| Chi tiết + duyệt gia sư | `/tutors/[id]` | P0 |
-| Danh sách yêu cầu PH | `/requests` | P0 |
-| Chi tiết + convert yêu cầu | `/requests/[id]` | P0 |
-| Danh sách lớp | `/classes` | P0 |
-| Tạo / sửa lớp | `/classes/new`, `/classes/[id]` | P0 |
-| Phân lớp | `/classes/[id]/assign` | P0 |
-| Danh sách thanh toán | `/payments` | P1 |
-| Audit log | `/audit-logs` | P1 |
+| Màn hình                   | Route Next.js                   | Ưu tiên |
+| -------------------------- | ------------------------------- | ------- |
+| Login                      | `/login`                        | P0      |
+| Dashboard tổng quan        | `/dashboard`                    | P0      |
+| Danh sách gia sư           | `/tutors`                       | P0      |
+| Chi tiết + duyệt gia sư    | `/tutors/[id]`                  | P0      |
+| Danh sách yêu cầu PH       | `/requests`                     | P0      |
+| Chi tiết + convert yêu cầu | `/requests/[id]`                | P0      |
+| Danh sách lớp              | `/classes`                      | P0      |
+| Tạo / sửa lớp              | `/classes/new`, `/classes/[id]` | P0      |
+| Phân lớp                   | `/classes/[id]/assign`          | P0      |
+| Danh sách thanh toán       | `/payments`                     | P1      |
+| Audit log                  | `/audit-logs`                   | P1      |
 
 **Yêu cầu UX tối thiểu cho mỗi màn:**
+
 - Loading state khi fetch
 - Empty state khi không có data
 - Error state khi API fail (toast message)
@@ -549,16 +758,17 @@ sendClassRejected(to, fullName, classInfo)
 ---
 
 ### Giai đoạn 5 — Hardening (Tuần 5)
+
 **Mục tiêu:** Production-ready.
 
-| Task | Ước tính |
-|------|---------|
-| OpenAPI/Scalar docs hoàn chỉnh | 3h |
-| Rate limiting fine-tune | 1h |
-| Security: helmet, CSRF check | 1h |
-| Dockerfile + Railway config | 2h |
-| Vercel config cho Admin FE | 1h |
-| Smoke test toàn bộ trên staging | 3h |
+| Task                            | Ước tính |
+| ------------------------------- | -------- |
+| OpenAPI/Scalar docs hoàn chỉnh  | 3h       |
+| Rate limiting fine-tune         | 1h       |
+| Security: helmet, CSRF check    | 1h       |
+| Dockerfile + Railway config     | 2h       |
+| Vercel config cho Admin FE      | 1h       |
+| Smoke test toàn bộ trên staging | 3h       |
 
 ---
 
@@ -641,27 +851,27 @@ MAX_FILE_SIZE_MB=5
 
 ## 13. Fastify vs Express — điểm khác biệt cần biết
 
-| Khái niệm | Express | Fastify |
-|-----------|---------|---------|
-| Middleware | `app.use(fn)` | `fastify.addHook('preHandler', fn)` |
-| Error handler | `app.use((err,req,res,next)=>)` | `fastify.setErrorHandler((err, request, reply)=>)` |
-| Route handler | `(req, res) => void` | `(request, reply) => Promise<void>` |
-| Body | `req.body` | `request.body` |
-| Params | `req.params` | `request.params` |
-| Auth user | `req.user` | `request.user` (cần extend type) |
-| Plugin | `express-*` | `@fastify/*` hoặc `fastify-plugin` |
-| Schema validation | Manual / Joi / Zod | Built-in JSON Schema hoặc Zod |
+| Khái niệm         | Express                         | Fastify                                            |
+| ----------------- | ------------------------------- | -------------------------------------------------- |
+| Middleware        | `app.use(fn)`                   | `fastify.addHook('preHandler', fn)`                |
+| Error handler     | `app.use((err,req,res,next)=>)` | `fastify.setErrorHandler((err, request, reply)=>)` |
+| Route handler     | `(req, res) => void`            | `(request, reply) => Promise<void>`                |
+| Body              | `req.body`                      | `request.body`                                     |
+| Params            | `req.params`                    | `request.params`                                   |
+| Auth user         | `req.user`                      | `request.user` (cần extend type)                   |
+| Plugin            | `express-*`                     | `@fastify/*` hoặc `fastify-plugin`                 |
+| Schema validation | Manual / Joi / Zod              | Built-in JSON Schema hoặc Zod                      |
 
 **Extend FastifyRequest:**
 
 ```typescript
 // src/types/fastify.d.ts
-import { Role } from '@prisma/client'
+import { Role } from "@prisma/client";
 
-declare module 'fastify' {
+declare module "fastify" {
   interface FastifyRequest {
-    user?: { id: string; role: Role }
-    tutor?: { id: string; status: string; fullName: string }
+    user?: { id: string; role: Role };
+    tutor?: { id: string; status: string; fullName: string };
   }
 }
 ```
@@ -671,6 +881,7 @@ declare module 'fastify' {
 ## 14. Checklist "Xong việc" — định nghĩa done
 
 ### Backend done khi:
+
 - [ ] Tất cả 42 endpoints trả đúng response theo API contract
 - [ ] Mọi input được validate (Zod) — không có unhandled exception
 - [ ] JWT auth + RBAC hoạt động đúng cho 3 role: PUBLIC / TUTOR / ADMIN
@@ -683,6 +894,7 @@ declare module 'fastify' {
 - [ ] Seed data chạy được, có đủ dữ liệu để test mọi flow
 
 ### Admin FE done khi:
+
 - [ ] Login/logout hoạt động, token lưu httpOnly cookie
 - [ ] 9 màn P0 render được với loading/empty/error state
 - [ ] Confirm dialog trước mọi action không thể undo
@@ -690,6 +902,7 @@ declare module 'fastify' {
 - [ ] Không có console error trên các màn P0
 
 ### API contract done khi:
+
 - [ ] Scalar docs accessible tại `/docs`
 - [ ] Postman collection export được (từ Scalar)
 - [ ] FE team (public website) có thể gọi API mà không cần hỏi BE
@@ -698,18 +911,19 @@ declare module 'fastify' {
 
 ## 15. Separation of concerns với team
 
-| Phần | Owner | Ghi chú |
-|------|-------|---------|
-| `prisma/schema.prisma` | **Bạn** | Mọi thay đổi schema cần báo team |
-| `/api/v1/admin/*` | **Bạn** | Full ownership |
-| `/api/v1/auth/*` | **Bạn** | Full ownership |
-| `/api/v1/tutor/*` | **Bạn** | Full ownership |
-| `/api/v1/public/*` | **Bạn** | Full ownership |
-| Admin FE | **Bạn** | Chỉ cần đủ dùng |
-| Public website FE | Team khác | Họ gọi API của bạn |
-| API contract (`/docs`) | **Bạn** cung cấp | Team khác đọc, không sửa |
+| Phần                   | Owner            | Ghi chú                          |
+| ---------------------- | ---------------- | -------------------------------- |
+| `prisma/schema.prisma` | **Bạn**          | Mọi thay đổi schema cần báo team |
+| `/api/v1/admin/*`      | **Bạn**          | Full ownership                   |
+| `/api/v1/auth/*`       | **Bạn**          | Full ownership                   |
+| `/api/v1/tutor/*`      | **Bạn**          | Full ownership                   |
+| `/api/v1/public/*`     | **Bạn**          | Full ownership                   |
+| Admin FE               | **Bạn**          | Chỉ cần đủ dùng                  |
+| Public website FE      | Team khác        | Họ gọi API của bạn               |
+| API contract (`/docs`) | **Bạn** cung cấp | Team khác đọc, không sửa         |
 
 **Quy tắc không chờ nhau:**
+
 1. BE không chờ FE public — mock data trong seed đủ để test
 2. FE public không chờ BE — dùng API contract để mock
 3. Breaking change phải báo trước 1 ngày, tạo version mới nếu cần
@@ -742,6 +956,7 @@ Domain:
 ```
 
 **Railway setup:**
+
 ```bash
 # Procfile hoặc railway.toml
 [deploy]

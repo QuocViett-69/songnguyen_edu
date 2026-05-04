@@ -4,10 +4,10 @@ export default function LoginPage() {
   return (
     <main className="login-shell">
       <section className="login-card">
-        <h1>Admin Login</h1>
-        <p>Phase 0 shell for admin auth flow.</p>
+        <h1>Đăng nhập quản trị</h1>
+        <p>Giao diện mẫu cho luồng đăng nhập quản trị viên.</p>
         <Link href="/dashboard">
-          <button type="button">Go to dashboard shell</button>
+          <button type="button">Vào trang quản trị</button>
         </Link>
       </section>
     </main>

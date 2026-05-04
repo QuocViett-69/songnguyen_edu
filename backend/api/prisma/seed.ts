@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const SEED_REQUEST_ID = "11111111-1111-1111-1111-111111111001";
 const SEED_CLASS_ID = "11111111-1111-1111-1111-111111111002";
 const SEED_PAYMENT_ID = "11111111-1111-1111-1111-111111111003";
+const SEED_MEMBER_ID = "11111111-1111-1111-1111-111111111004";
 
 async function main(): Promise<void> {
   const adminPasswordHash = await bcrypt.hash("Admin@123", 12);
@@ -16,11 +17,13 @@ async function main(): Promise<void> {
     update: {
       fullName: "SNE Admin",
       passwordHash: adminPasswordHash,
+      role: "SUPERADMIN",
     },
     create: {
       email: "admin@sne.vn",
       fullName: "SNE Admin",
       passwordHash: adminPasswordHash,
+      role: "SUPERADMIN",
     },
   });
 
@@ -28,6 +31,7 @@ async function main(): Promise<void> {
     where: { email: "tutor.approved@sne.vn" },
     update: {
       fullName: "Tutor Approved",
+      phone: "0911222333",
       passwordHash: tutorPasswordHash,
       status: "APPROVED",
       subjects: ["Toan", "Ly"],
@@ -38,6 +42,7 @@ async function main(): Promise<void> {
     create: {
       email: "tutor.approved@sne.vn",
       fullName: "Tutor Approved",
+      phone: "0911222333",
       passwordHash: tutorPasswordHash,
       status: "APPROVED",
       subjects: ["Toan", "Ly"],
@@ -51,6 +56,7 @@ async function main(): Promise<void> {
     where: { email: "tutor.pending@sne.vn" },
     update: {
       fullName: "Tutor Pending",
+      phone: "0988999777",
       passwordHash: tutorPasswordHash,
       status: "PENDING",
       subjects: ["Anh Van"],
@@ -61,6 +67,7 @@ async function main(): Promise<void> {
     create: {
       email: "tutor.pending@sne.vn",
       fullName: "Tutor Pending",
+      phone: "0988999777",
       passwordHash: tutorPasswordHash,
       status: "PENDING",
       subjects: ["Anh Van"],
@@ -144,10 +151,37 @@ async function main(): Promise<void> {
     },
   });
 
+  await prisma.classMember.upsert({
+    where: { id: SEED_MEMBER_ID },
+    update: {
+      requestId: request.id,
+      classId: seededClass.id,
+      studentName: "Tran Minh Khoa",
+      studentGrade: "Lop 12",
+      parentName: request.parentName,
+      parentPhone: request.parentPhone,
+      parentEmail: request.parentEmail,
+      address: "Quan 7, TP.HCM",
+    },
+    create: {
+      id: SEED_MEMBER_ID,
+      requestId: request.id,
+      classId: seededClass.id,
+      studentName: "Tran Minh Khoa",
+      studentGrade: "Lop 12",
+      parentName: request.parentName,
+      parentPhone: request.parentPhone,
+      parentEmail: request.parentEmail,
+      address: "Quan 7, TP.HCM",
+    },
+  });
+
   await prisma.payment.upsert({
     where: { id: SEED_PAYMENT_ID },
     update: {
       tutorId: approvedTutor.id,
+      classId: seededClass.id,
+      attemptCount: 1,
       amount: 1500000,
       billImageUrl: "https://example.com/bill-seed-001.jpg",
       status: "PENDING",
@@ -158,10 +192,35 @@ async function main(): Promise<void> {
     create: {
       id: SEED_PAYMENT_ID,
       tutorId: approvedTutor.id,
+      classId: seededClass.id,
+      attemptCount: 1,
       amount: 1500000,
       billImageUrl: "https://example.com/bill-seed-001.jpg",
       status: "PENDING",
       note: "April tuition payout",
+    },
+  });
+
+  await prisma.systemSetting.upsert({
+    where: { key: "landing.seo" },
+    update: {
+      category: "SEO",
+      value: {
+        title: "SNE - Trung tam gia su",
+        description: "Nen tang ket noi phu huynh va gia su uy tin.",
+      },
+      description: "Cau hinh SEO landing page",
+      updatedById: admin.id,
+    },
+    create: {
+      key: "landing.seo",
+      category: "SEO",
+      value: {
+        title: "SNE - Trung tam gia su",
+        description: "Nen tang ket noi phu huynh va gia su uy tin.",
+      },
+      description: "Cau hinh SEO landing page",
+      updatedById: admin.id,
     },
   });
 

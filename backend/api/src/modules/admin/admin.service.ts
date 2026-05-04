@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { AppError } from "../../common/errors/AppError.js";
 import { buildMeta, parsePagination } from "../../common/utils/pagination.js";
 import {
@@ -14,9 +16,59 @@ type AdminActor = {
 };
 
 type TutorApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+type PaymentStatus = "PENDING" | "CONFIRMED" | "REJECTED";
+
+type DashboardStatsRow = {
+  pending_tutors: bigint | number;
+  open_classes: bigint | number;
+  pending_requests: bigint | number;
+  pending_payments: bigint | number;
+};
+
+type LatestPaymentRow = {
+  id: string;
+  class_id: string;
+  tutor_id: string;
+  amount: number;
+  bill_image_url: string;
+  status: PaymentStatus;
+  note: string | null;
+  reviewed_by_id: string | null;
+  reviewed_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+  attempt_count: number;
+  tutor_full_name: string;
+  tutor_email: string;
+  class_title: string | null;
+  class_status: "OPEN" | "ASSIGNED" | "CLOSED" | null;
+};
+
+const AUTO_REJECT_NOTE = "Lop da duoc phan cho gia su khac";
 
 function invalidState(message: string): never {
   throw new AppError("INVALID_STATE", 409, message);
+}
+
+function conflict(message: string): never {
+  throw new AppError("CONFLICT", 409, message);
+}
+
+function normalizeCount(value: bigint | number | null | undefined): number {
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+
+  return Number(value ?? 0);
+}
+
+function isPrismaConstraintError(error: unknown, code: string): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: string }).code === code
+  );
 }
 
 async function resolveActorName(actor: AdminActor): Promise<string> {
@@ -28,7 +80,49 @@ async function resolveActorName(actor: AdminActor): Promise<string> {
   return admin?.fullName ?? actor.email;
 }
 
+async function getDashboardStatsFromDb(): Promise<{
+  pendingTutors: number;
+  pendingRequests: number;
+  openClasses: number;
+  pendingPayments: number;
+}> {
+  const rows = await prisma.$queryRaw<DashboardStatsRow[]>(Prisma.sql`
+    SELECT
+      (SELECT COUNT(*) FROM tutors WHERE status = 'PENDING') AS pending_tutors,
+      (SELECT COUNT(*) FROM classes WHERE status = 'OPEN') AS open_classes,
+      (SELECT COUNT(*) FROM class_requests WHERE status = 'PENDING') AS pending_requests,
+      (
+        SELECT COUNT(*)
+        FROM (
+          SELECT DISTINCT ON (class_id) class_id, status
+          FROM payments
+          WHERE class_id IS NOT NULL
+          ORDER BY class_id, created_at DESC
+        ) latest_payments
+        WHERE latest_payments.status = 'PENDING'
+      ) AS pending_payments
+  `);
+
+  const row = rows[0];
+
+  return {
+    pendingTutors: normalizeCount(row?.pending_tutors),
+    pendingRequests: normalizeCount(row?.pending_requests),
+    openClasses: normalizeCount(row?.open_classes),
+    pendingPayments: normalizeCount(row?.pending_payments),
+  };
+}
+
 export const adminService = {
+  async getDashboardStats(): Promise<{
+    pendingTutors: number;
+    pendingRequests: number;
+    openClasses: number;
+    pendingPayments: number;
+  }> {
+    return getDashboardStatsFromDb();
+  },
+
   async getDashboard(): Promise<{
     stats: {
       pendingTutors: number;
@@ -45,17 +139,8 @@ export const adminService = {
       createdAt: Date;
     }>;
   }> {
-    const [
-      pendingTutors,
-      pendingRequests,
-      openClasses,
-      pendingPayments,
-      recentAudit,
-    ] = await Promise.all([
-      prisma.tutor.count({ where: { status: "PENDING" } }),
-      prisma.classRequest.count({ where: { status: "PENDING" } }),
-      prisma.class.count({ where: { status: "OPEN" } }),
-      prisma.payment.count({ where: { status: "PENDING" } }),
+    const [stats, recentAudit] = await Promise.all([
+      getDashboardStatsFromDb(),
       prisma.auditLog.findMany({
         take: 10,
         orderBy: { createdAt: "desc" },
@@ -71,12 +156,7 @@ export const adminService = {
     ]);
 
     return {
-      stats: {
-        pendingTutors,
-        pendingRequests,
-        openClasses,
-        pendingPayments,
-      },
+      stats,
       recentAudit,
     };
   },
@@ -86,12 +166,17 @@ export const adminService = {
     limit?: string | number;
     status?: TutorApprovalStatus;
     search?: string;
+    phone?: string;
     subject?: string;
+    subjects?: string[];
+    district?: string;
+    districts?: string[];
   }): Promise<{
     data: Array<{
       id: string;
       fullName: string;
       email: string;
+      phone: string | null;
       status: TutorApprovalStatus;
       subjects: string[];
       districts: string[];
@@ -107,21 +192,46 @@ export const adminService = {
   }> {
     const { page, limit, skip } = parsePagination(query);
 
-    const where: any = {};
+    const where: any = { AND: [] };
 
     if (query.status) {
-      where.status = query.status;
+      where.AND.push({ status: query.status });
     }
 
     if (query.search) {
-      where.OR = [
-        { email: { contains: query.search, mode: "insensitive" } },
-        { fullName: { contains: query.search, mode: "insensitive" } },
-      ];
+      where.AND.push({
+        OR: [
+          { email: { contains: query.search, mode: "insensitive" } },
+          { fullName: { contains: query.search, mode: "insensitive" } },
+          { phone: { contains: query.search, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (query.phone) {
+      where.AND.push({
+        phone: { contains: query.phone, mode: "insensitive" },
+      });
     }
 
     if (query.subject) {
-      where.subjects = { has: query.subject };
+      where.AND.push({ subjects: { has: query.subject } });
+    }
+
+    if (query.subjects && query.subjects.length > 0) {
+      where.AND.push({ subjects: { hasSome: query.subjects } });
+    }
+
+    if (query.district) {
+      where.AND.push({ districts: { has: query.district } });
+    }
+
+    if (query.districts && query.districts.length > 0) {
+      where.AND.push({ districts: { hasSome: query.districts } });
+    }
+
+    if (where.AND.length === 0) {
+      delete where.AND;
     }
 
     const [data, total] = await Promise.all([
@@ -134,6 +244,7 @@ export const adminService = {
           id: true,
           fullName: true,
           email: true,
+          phone: true,
           status: true,
           subjects: true,
           districts: true,
@@ -154,6 +265,7 @@ export const adminService = {
     id: string;
     fullName: string;
     email: string;
+    phone: string | null;
     status: TutorApprovalStatus;
     subjects: string[];
     districts: string[];
@@ -267,6 +379,8 @@ export const adminService = {
       select: {
         id: true,
         status: true,
+        email: true,
+        fullName: true,
       },
     });
 
@@ -307,6 +421,8 @@ export const adminService = {
         tx,
       );
     });
+
+    await emailService.sendTutorRejected(tutor.email, tutor.fullName, reason);
 
     return { tutorId, rejected: true };
   },
@@ -373,6 +489,18 @@ export const adminService = {
     const request = await prisma.classRequest.findUnique({
       where: { id: requestId },
       include: {
+        members: {
+          select: {
+            id: true,
+            studentName: true,
+            studentGrade: true,
+            parentName: true,
+            parentPhone: true,
+            parentEmail: true,
+            address: true,
+            classId: true,
+          },
+        },
         processedBy: {
           select: {
             id: true,
@@ -446,6 +574,25 @@ export const adminService = {
         },
       });
 
+      const updatedMembers = await tx.classMember.updateMany({
+        where: { requestId: request.id },
+        data: { classId: newClass.id },
+      });
+
+      if (updatedMembers.count === 0) {
+        await tx.classMember.create({
+          data: {
+            requestId: request.id,
+            classId: newClass.id,
+            studentName: "Hoc vien",
+            studentGrade: request.grade,
+            parentName: request.parentName,
+            parentPhone: request.parentPhone,
+            parentEmail: request.parentEmail,
+          },
+        });
+      }
+
       await tx.classRequest.update({
         where: { id: request.id },
         data: {
@@ -464,6 +611,7 @@ export const adminService = {
           targetId: request.id,
           payload: {
             classId: newClass.id,
+            migratedMembers: updatedMembers.count,
           },
         },
         tx,
@@ -551,6 +699,7 @@ export const adminService = {
       createdAt: Date;
       _count: {
         applications: number;
+        members: number;
       };
     }>;
     meta: {
@@ -594,6 +743,7 @@ export const adminService = {
           _count: {
             select: {
               applications: true,
+              members: true,
             },
           },
         },
@@ -636,6 +786,13 @@ export const adminService = {
         },
       });
 
+      if (input.sourceRequestId) {
+        await tx.classMember.updateMany({
+          where: { requestId: input.sourceRequestId },
+          data: { classId: newClass.id },
+        });
+      }
+
       await auditLogService.log(
         {
           actorId: actor.id,
@@ -661,6 +818,28 @@ export const adminService = {
     const classItem = await prisma.class.findUnique({
       where: { id: classId },
       include: {
+        members: {
+          select: {
+            id: true,
+            studentName: true,
+            studentGrade: true,
+            parentName: true,
+            parentPhone: true,
+            parentEmail: true,
+            address: true,
+          },
+        },
+        payments: {
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            attemptCount: true,
+            createdAt: true,
+          },
+        },
         sourceRequest: true,
         assignment: {
           include: {
@@ -806,6 +985,7 @@ export const adminService = {
             id: true,
             fullName: true,
             email: true,
+            phone: true,
             subjects: true,
             districts: true,
             status: true,
@@ -825,16 +1005,12 @@ export const adminService = {
       where: { id: classId },
       select: {
         id: true,
-        status: true,
+        title: true,
       },
     });
 
     if (!classItem) {
       throw new AppError("CLASS_NOT_FOUND", 404, "Class not found");
-    }
-
-    if (classItem.status !== "OPEN") {
-      invalidState("Only OPEN class can be assigned");
     }
 
     const selectedApplication = await prisma.classApplication.findUnique({
@@ -844,9 +1020,14 @@ export const adminService = {
           tutorId,
         },
       },
-      select: {
-        id: true,
-        status: true,
+      include: {
+        tutor: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -858,112 +1039,293 @@ export const adminService = {
       );
     }
 
-    const existingAssignment = await prisma.classAssignment.findUnique({
-      where: { classId },
-      select: { id: true },
-    });
-
-    if (existingAssignment) {
-      invalidState("Class is already assigned");
+    if (selectedApplication.status === "REJECTED") {
+      invalidState("Rejected application cannot be assigned");
     }
 
     const actorName = await resolveActorName(actor);
 
-    return prisma.$transaction(async (tx: any) => {
-      const assignment = await tx.classAssignment.create({
-        data: {
-          classId,
-          tutorId,
-          assignedById: actor.id,
-          note,
-        },
-      });
+    try {
+      const assignment = await prisma.$transaction(async (tx: any) => {
+        const openGuard = await tx.class.updateMany({
+          where: {
+            id: classId,
+            status: "OPEN",
+          },
+          data: {
+            status: "OPEN",
+          },
+        });
 
-      await tx.classApplication.update({
-        where: {
-          classId_tutorId: {
+        if (openGuard.count === 0) {
+          conflict("Class is no longer OPEN");
+        }
+
+        const createdAssignment = await tx.classAssignment.create({
+          data: {
             classId,
             tutorId,
-          },
-        },
-        data: {
-          status: "ACCEPTED",
-        },
-      });
-
-      await tx.classApplication.updateMany({
-        where: {
-          classId,
-          tutorId: {
-            not: tutorId,
-          },
-        },
-        data: {
-          status: "REJECTED",
-        },
-      });
-
-      await tx.class.update({
-        where: { id: classId },
-        data: {
-          status: "ASSIGNED",
-        },
-      });
-
-      await auditLogService.log(
-        {
-          actorId: actor.id,
-          actorName,
-          action: "ASSIGN_CLASS",
-          targetType: "CLASS",
-          targetId: classId,
-          payload: {
-            tutorId,
+            assignedById: actor.id,
             note,
           },
+        });
+
+        await tx.classApplication.update({
+          where: {
+            classId_tutorId: {
+              classId,
+              tutorId,
+            },
+          },
+          data: {
+            status: "ACCEPTED",
+          },
+        });
+
+        await tx.classApplication.updateMany({
+          where: {
+            classId,
+            tutorId: {
+              not: tutorId,
+            },
+          },
+          data: {
+            status: "REJECTED",
+            note: AUTO_REJECT_NOTE,
+          },
+        });
+
+        await tx.class.update({
+          where: { id: classId },
+          data: {
+            status: "ASSIGNED",
+          },
+        });
+
+        await auditLogService.log(
+          {
+            actorId: actor.id,
+            actorName,
+            action: "ASSIGN_CLASS",
+            targetType: "CLASS",
+            targetId: classId,
+            payload: {
+              tutorId,
+              note,
+            },
+          },
+          tx,
+        );
+
+        return createdAssignment;
+      });
+
+      await emailService.sendClassAssignmentFeeRequest(
+        selectedApplication.tutor.email,
+        selectedApplication.tutor.fullName,
+        {
+          classId,
+          classTitle: classItem.title,
+          note,
         },
-        tx,
       );
 
       return assignment;
-    });
+    } catch (error) {
+      if (
+        isPrismaConstraintError(error, "P2002") ||
+        isPrismaConstraintError(error, "P2034")
+      ) {
+        conflict("Class has already been assigned by another admin");
+      }
+
+      throw error;
+    }
   },
 
   async listPayments(query: {
     page?: string | number;
     limit?: string | number;
-    status?: "PENDING" | "CONFIRMED" | "REJECTED";
+    status?: PaymentStatus;
+    classId?: string;
+    tutorId?: string;
+    latestOnly?: boolean;
   }) {
     const { page, limit, skip } = parsePagination(query);
+    const latestOnly = query.latestOnly ?? true;
 
-    const where: any = {};
+    if (!latestOnly) {
+      const where: any = {};
 
-    if (query.status) {
-      where.status = query.status;
-    }
+      if (query.status) {
+        where.status = query.status;
+      }
 
-    const [data, total] = await Promise.all([
-      prisma.payment.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          tutor: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
+      if (query.classId) {
+        where.classId = query.classId;
+      }
+
+      if (query.tutorId) {
+        where.tutorId = query.tutorId;
+      }
+
+      const [data, total] = await Promise.all([
+        prisma.payment.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            tutor: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
+            class: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
             },
           },
-        },
-      }),
-      prisma.payment.count({ where }),
-    ]);
+        }),
+        prisma.payment.count({ where }),
+      ]);
+
+      return {
+        data,
+        meta: buildMeta(page, limit, total),
+      };
+    }
+
+    const filterConditions: Prisma.Sql[] = [Prisma.sql`p.class_id IS NOT NULL`];
+
+    if (query.classId) {
+      filterConditions.push(Prisma.sql`p.class_id = ${query.classId}`);
+    }
+
+    if (query.tutorId) {
+      filterConditions.push(Prisma.sql`p.tutor_id = ${query.tutorId}`);
+    }
+
+    const latestConditions: Prisma.Sql[] = [];
+
+    if (query.status) {
+      latestConditions.push(Prisma.sql`l.status = ${query.status}`);
+    }
+
+    const filteredWhere = Prisma.sql`
+      WHERE ${Prisma.join(filterConditions, " AND ")}
+    `;
+
+    const latestWhere =
+      latestConditions.length > 0
+        ? Prisma.sql`WHERE ${Prisma.join(latestConditions, " AND ")}`
+        : Prisma.empty;
+
+    const data = await prisma.$queryRaw<LatestPaymentRow[]>(Prisma.sql`
+      WITH filtered AS (
+        SELECT p.*
+        FROM payments p
+        ${filteredWhere}
+      ),
+      latest AS (
+        SELECT DISTINCT ON (class_id)
+          id,
+          class_id,
+          tutor_id,
+          amount,
+          bill_image_url,
+          status,
+          note,
+          reviewed_by_id,
+          reviewed_at,
+          created_at,
+          updated_at
+        FROM filtered
+        ORDER BY class_id, created_at DESC
+      ),
+      attempts AS (
+        SELECT class_id, COUNT(*)::int AS attempt_count
+        FROM filtered
+        GROUP BY class_id
+      )
+      SELECT
+        l.id,
+        l.class_id,
+        l.tutor_id,
+        l.amount,
+        l.bill_image_url,
+        l.status,
+        l.note,
+        l.reviewed_by_id,
+        l.reviewed_at,
+        l.created_at,
+        l.updated_at,
+        a.attempt_count,
+        t.full_name AS tutor_full_name,
+        t.email AS tutor_email,
+        c.title AS class_title,
+        c.status AS class_status
+      FROM latest l
+      JOIN attempts a ON a.class_id = l.class_id
+      JOIN tutors t ON t.id = l.tutor_id
+      LEFT JOIN classes c ON c.id = l.class_id
+      ${latestWhere}
+      ORDER BY l.created_at DESC
+      LIMIT ${limit} OFFSET ${skip}
+    `);
+
+    const totalRows = await prisma.$queryRaw<Array<{ total: bigint | number }>>(
+      Prisma.sql`
+        WITH filtered AS (
+          SELECT p.*
+          FROM payments p
+          ${filteredWhere}
+        ),
+        latest AS (
+          SELECT DISTINCT ON (class_id)
+            class_id,
+            status,
+            created_at
+          FROM filtered
+          ORDER BY class_id, created_at DESC
+        )
+        SELECT COUNT(*) AS total
+        FROM latest l
+        ${latestWhere}
+      `,
+    );
 
     return {
-      data,
-      meta: buildMeta(page, limit, total),
+      data: data.map((row) => ({
+        id: row.id,
+        classId: row.class_id,
+        tutorId: row.tutor_id,
+        amount: row.amount,
+        billImageUrl: row.bill_image_url,
+        status: row.status,
+        note: row.note,
+        reviewedById: row.reviewed_by_id,
+        reviewedAt: row.reviewed_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        attemptCount: row.attempt_count,
+        tutor: {
+          id: row.tutor_id,
+          fullName: row.tutor_full_name,
+          email: row.tutor_email,
+        },
+        class: {
+          id: row.class_id,
+          title: row.class_title ?? `Lop ${row.class_id}`,
+          status: row.class_status ?? "OPEN",
+        },
+      })),
+      meta: buildMeta(page, limit, normalizeCount(totalRows[0]?.total)),
     };
   },
 
@@ -971,6 +1333,24 @@ export const adminService = {
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
       include: {
+        class: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            members: {
+              select: {
+                id: true,
+                studentName: true,
+                studentGrade: true,
+                parentName: true,
+                parentPhone: true,
+                parentEmail: true,
+                address: true,
+              },
+            },
+          },
+        },
         tutor: {
           select: {
             id: true,
@@ -997,9 +1377,21 @@ export const adminService = {
   async confirmPayment(actor: AdminActor, paymentId: string, note?: string) {
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
-      select: {
-        id: true,
-        status: true,
+      include: {
+        class: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+          },
+        },
+        tutor: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -1007,13 +1399,21 @@ export const adminService = {
       throw new AppError("PAYMENT_NOT_FOUND", 404, "Payment not found");
     }
 
-    if (payment.status === "CONFIRMED") {
-      invalidState("Payment is already confirmed");
+    if (payment.status !== "PENDING") {
+      invalidState("Only pending payment can be confirmed");
+    }
+
+    if (!payment.classId || !payment.class) {
+      invalidState("Payment is not linked to a class");
+    }
+
+    if (payment.class.status !== "ASSIGNED") {
+      invalidState("Class must be ASSIGNED before confirming payment");
     }
 
     const actorName = await resolveActorName(actor);
 
-    return prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const updated = await tx.payment.update({
         where: { id: paymentId },
         data: {
@@ -1021,6 +1421,18 @@ export const adminService = {
           note,
           reviewedAt: new Date(),
           reviewedById: actor.id,
+        },
+      });
+
+      const members = await tx.classMember.findMany({
+        where: { classId: payment.classId },
+        select: {
+          studentName: true,
+          studentGrade: true,
+          parentName: true,
+          parentPhone: true,
+          parentEmail: true,
+          address: true,
         },
       });
 
@@ -1035,13 +1447,27 @@ export const adminService = {
             previousStatus: payment.status,
             nextStatus: "CONFIRMED",
             note,
+            classId: payment.classId,
+            unlockedMembers: members.length,
           },
         },
         tx,
       );
 
-      return updated;
+      return { updated, members };
     });
+
+    await emailService.sendPaymentConfirmedWithMembers(
+      payment.tutor.email,
+      payment.tutor.fullName,
+      {
+        classId: payment.classId,
+        classTitle: payment.class.title,
+        members: result.members,
+      },
+    );
+
+    return result.updated;
   },
 
   async rejectPayment(actor: AdminActor, paymentId: string, note?: string) {
@@ -1057,8 +1483,8 @@ export const adminService = {
       throw new AppError("PAYMENT_NOT_FOUND", 404, "Payment not found");
     }
 
-    if (payment.status === "REJECTED") {
-      invalidState("Payment is already rejected");
+    if (payment.status !== "PENDING") {
+      invalidState("Only pending payment can be rejected");
     }
 
     const actorName = await resolveActorName(actor);

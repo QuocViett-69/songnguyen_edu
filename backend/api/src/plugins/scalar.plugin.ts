@@ -4,9 +4,9 @@ import apiReference from "@scalar/fastify-api-reference";
 
 export const registerScalarDocs = fp(async (app: FastifyInstance) => {
   await app.register(apiReference, {
-    routePrefix: "/docs",
+    routePrefix: "/reference",
     configuration: {
-      title: "SNE API",
+      title: "SNE API Reference",
     },
   });
 });

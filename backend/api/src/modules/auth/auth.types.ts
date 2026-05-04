@@ -1,4 +1,4 @@
-export type UserRole = "ADMIN" | "TUTOR";
+export type UserRole = "ADMIN" | "SUPERADMIN" | "TUTOR";
 
 export type TokenPayload = {
   sub: string;

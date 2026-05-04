@@ -1,0 +1,84 @@
+Searched for files matching `**/README.md`, 7 matches
+
+Searched for files matching `**/package.json`, 5 matches
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/backend/SNE_BACKEND_PLAN.md#1-1), lines 1 to 80
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/admin/next-app/README.md)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/backend/api/README.md)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/user/next-app/README.md)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/packages/contracts/package.json)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/backend/api/package.json)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/main/package.json)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/admin/next-app/package.json)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/user/next-app/package.json)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/packages/contracts/README.md)
+
+Read [](file:///e%3A/Personal%20Projects/SNE_Project/SNE/songnguyen_edu/frontend/main/README.md)
+
+Thứ tự khởi động đề xuất (để không lỗi phụ thuộc và tránh đụng port), dựa trên các README và package.json hiện tại.
+
+**1) Dịch vụ nền tảng**
+
+- Start PostgreSQL và Redis trước (backend cần 2 dịch vụ này).
+
+**2) Backend API**
+Theo README.md:
+
+```bash
+cd "backend/api"
+npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+npm run dev
+```
+
+- API sẽ chạy theo `PORT` trong `.env` của backend.
+
+**3) Frontend Main (public + tutor)**
+Theo package.json:
+
+```bash
+cd "frontend/main"
+npm install
+npm run dev
+```
+
+- Mặc định chạy `http://localhost:3001` (đã set trong script).
+
+**4) Frontend Admin**
+Theo README.md:
+
+```bash
+cd "frontend/admin/next-app"
+npm install
+npm run dev
+```
+
+- Mặc định chạy `http://localhost:3002`.
+
+**5) Frontend User**
+Theo package.json:
+
+```bash
+cd "frontend/user/next-app"
+npm install
+npm run dev
+```
+
+- Mặc định `http://localhost:3000` (có thể trùng với BE). Nếu trùng, chạy:
+
+```bash
+npm run dev -- -p 3003
+```
+
+Nếu bạn muốn, tôi có thể viết lại thành một checklist khởi động nhanh (1 trang) hoặc tạo scripts chạy đồng thời cho cả BE/FE.

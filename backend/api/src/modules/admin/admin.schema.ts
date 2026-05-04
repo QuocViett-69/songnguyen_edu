@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+const CsvArraySchema = z
+  .union([z.string(), z.array(z.string())])
+  .transform((value) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => item.trim()).filter((item) => item.length > 0);
+    }
+
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  })
+  .refine((value) => value.length > 0, {
+    message: "At least one value is required",
+  });
+
 const PaginationQuerySchema = z.object({
   page: z.coerce.number().min(1).optional(),
   limit: z.coerce.number().min(1).max(100).optional(),
@@ -12,7 +28,11 @@ export const IdParamSchema = z.object({
 export const AdminListTutorsQuerySchema = PaginationQuerySchema.extend({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
   search: z.string().trim().min(1).optional(),
+  phone: z.string().trim().min(3).optional(),
   subject: z.string().trim().min(1).optional(),
+  subjects: CsvArraySchema.optional(),
+  district: z.string().trim().min(1).optional(),
+  districts: CsvArraySchema.optional(),
 });
 
 export const RejectTutorBodySchema = z.object({
@@ -69,9 +89,17 @@ export const AssignClassBodySchema = z.object({
 
 export const AdminListPaymentsQuerySchema = PaginationQuerySchema.extend({
   status: z.enum(["PENDING", "CONFIRMED", "REJECTED"]).optional(),
+  classId: z.string().uuid().optional(),
+  tutorId: z.string().uuid().optional(),
+  latestOnly: z.coerce.boolean().optional(),
 });
 
-export const UpdatePaymentStatusBodySchema = z.object({
+export const ConfirmPaymentBodySchema = z.object({
+  note: z.string().trim().max(500).optional(),
+});
+
+export const RejectPaymentBodySchema = z.object({
+  reason: z.string().trim().min(3).max(500),
   note: z.string().trim().max(500).optional(),
 });
 

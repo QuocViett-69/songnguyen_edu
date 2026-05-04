@@ -11,6 +11,7 @@ This app is isolated for Admin FE ownership.
 - src/app/(admin)/requests
 - src/app/(admin)/payments
 - src/app/(admin)/audit-logs
+- src/app/(admin)/settings
 
 ## Run
 

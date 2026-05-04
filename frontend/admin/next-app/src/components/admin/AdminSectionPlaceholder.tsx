@@ -15,7 +15,7 @@ export function AdminSectionPlaceholder({
       </div>
 
       <article className="admin-card">
-        <h3>Implementation checklist</h3>
+        <h3>Danh sách việc cần triển khai</h3>
         <ul className="admin-checklist">
           {checklist.map((item) => (
             <li key={item}>{item}</li>

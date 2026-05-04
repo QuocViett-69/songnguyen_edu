@@ -4,12 +4,17 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
   ADMIN
+  SUPERADMIN
   TUTOR
+}
+
+enum AdminRole {
+  ADMIN
+  SUPERADMIN
 }
 
 enum TutorStatus {
@@ -42,11 +47,20 @@ enum PaymentStatus {
   REJECTED
 }
 
+enum SettingCategory {
+  SEO
+  PRICING
+  LANDING_PAGE
+  BANKING
+  SYSTEM
+}
+
 model Admin {
   id                String         @id @default(uuid())
   email             String         @unique
   fullName          String         @map("full_name")
   passwordHash      String         @map("password_hash")
+  role              AdminRole      @default(ADMIN)
   createdAt         DateTime       @default(now()) @map("created_at")
   updatedAt         DateTime       @updatedAt @map("updated_at")
   approvedTutors    Tutor[]        @relation("TutorApprovedBy")
@@ -54,6 +68,7 @@ model Admin {
   createdClasses    Class[]        @relation("ClassCreatedBy")
   assignedClasses   ClassAssignment[]
   reviewedPayments  Payment[]      @relation("PaymentReviewedBy")
+  updatedSettings   SystemSetting[] @relation("SettingUpdatedBy")
 
   @@map("admins")
 }
@@ -61,6 +76,7 @@ model Admin {
 model Tutor {
   id             String      @id @default(uuid())
   email          String      @unique
+  phone          String?
   fullName       String      @map("full_name")
   passwordHash   String?     @map("password_hash")
   status         TutorStatus @default(PENDING)
@@ -78,6 +94,7 @@ model Tutor {
   payments       Payment[]
 
   @@index([status])
+  @@index([phone])
   @@index([subjects], type: Gin)
   @@map("tutors")
 }
@@ -100,6 +117,7 @@ model ClassRequest {
 
   processedBy   Admin?        @relation("RequestProcessedBy", fields: [processedById], references: [id])
   classes       Class[]
+  members       ClassMember[]
 
   @@index([status])
   @@map("class_requests")
@@ -124,6 +142,8 @@ model Class {
   createdBy       Admin            @relation("ClassCreatedBy", fields: [createdById], references: [id])
   applications    ClassApplication[]
   assignment      ClassAssignment?
+  members         ClassMember[]
+  payments        Payment[]
 
   @@index([status])
   @@index([status, subject, district])
@@ -167,6 +187,8 @@ model ClassAssignment {
 model Payment {
   id           String        @id @default(uuid())
   tutorId      String        @map("tutor_id")
+  classId      String?       @map("class_id")
+  attemptCount Int           @default(1) @map("attempt_count")
   amount       Int
   billImageUrl String        @map("bill_image_url")
   status       PaymentStatus @default(PENDING)
@@ -177,10 +199,51 @@ model Payment {
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
   tutor        Tutor         @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  class        Class?        @relation(fields: [classId], references: [id], onDelete: SetNull)
   reviewedBy   Admin?        @relation("PaymentReviewedBy", fields: [reviewedById], references: [id])
 
   @@index([status])
+  @@index([classId, createdAt(sort: Desc)])
+  @@index([classId, status])
   @@map("payments")
+}
+
+model ClassMember {
+  id          String       @id @default(uuid())
+  requestId   String?      @map("request_id")
+  classId     String?      @map("class_id")
+  studentName String       @map("student_name")
+  studentGrade String?     @map("student_grade")
+  parentName  String       @map("parent_name")
+  parentPhone String       @map("parent_phone")
+  parentEmail String?      @map("parent_email")
+  address     String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  request     ClassRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  class       Class?        @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([classId])
+  @@map("class_members")
+}
+
+model SystemSetting {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  category    SettingCategory @default(SYSTEM)
+  value       Json
+  description String?
+  updatedById String          @map("updated_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  updatedBy   Admin           @relation("SettingUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([category])
+  @@index([updatedById])
+  @@map("system_settings")
 }
 
 model AuditLog {
