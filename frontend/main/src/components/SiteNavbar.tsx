@@ -21,20 +21,20 @@ export default function SiteNavbar() {
   const shouldHideNavbar =
     pathname?.startsWith("/tutor") ||
     pathname?.startsWith("/admin") ||
-    pathname === "/login";
+    pathname === "/dang-nhap-gia-su";
 
   const navItems = useMemo(
     () => [
       { name: "Học phí", link: "/hoc-phi" },
       { name: "Lớp mới", link: "/lop-moi" },
       { name: "Gia sư", link: "/gia-su" },
-      { name: "Về chúng tôi", link: "/about-us" },
-      { name: "FAQ", link: "/faq" },
+      { name: "Về chúng tôi", link: "/gioi-thieu-gia-su-uy-tin" },
+      { name: "Hỏi đáp", link: "/hoi-dap-gia-su" },
     ],
     [],
   );
 
-  const isLoginActive = pathname === "/login";
+  const isLoginActive = pathname === "/dang-nhap-gia-su";
 
   if (shouldHideNavbar) {
     return null;
@@ -56,7 +56,7 @@ export default function SiteNavbar() {
         {/* Right Section: Login Button */}
         <div className="flex shrink-0 items-center justify-end whitespace-nowrap">
           <NavbarButton
-            href="/login"
+            href="/dang-nhap-gia-su"
             variant={isLoginActive ? "dark" : "gradient"}
             className={isLoginActive ? "bg-red-600 text-white shrink-0" : "shrink-0"}
           >
@@ -93,7 +93,7 @@ export default function SiteNavbar() {
           })}
           <div className="flex w-full flex-col gap-4">
             <NavbarButton
-              href="/login"
+              href="/dang-nhap-gia-su"
               onClick={() => setIsMobileMenuOpen(false)}
               variant={isLoginActive ? "dark" : "gradient"}
               className={isLoginActive ? "w-full bg-red-600 text-white" : "w-full"}
