@@ -1,10 +1,10 @@
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Be_Vietnam_Pro } from "next/font/google";
 
 import styles from "./page.module.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const classCards = [
@@ -71,7 +71,7 @@ const matchingSteps = [
 
 export default function LopMoiPage() {
   return (
-    <main className={`${styles.page} ${plusJakarta.className}`}>
+    <main className={`${styles.page} ${beVietnamPro.className}`}>
       <section className={styles.hero}>
         <div className={styles.heroBackdrop} aria-hidden="true" />
         <div className={styles.heroOrb} aria-hidden="true" />
