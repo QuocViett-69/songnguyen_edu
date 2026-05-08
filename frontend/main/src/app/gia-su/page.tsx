@@ -1,15 +1,10 @@
-import { Manrope, Plus_Jakarta_Sans } from "next/font/google";
+import { Be_Vietnam_Pro } from "next/font/google";
 
 import styles from "./page.module.css";
 
-const headingFont = Plus_Jakarta_Sans({
+const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const bodyFont = Manrope({
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const values = [
@@ -76,14 +71,14 @@ const flow = [
 
 export default function GiaSuPage() {
   return (
-    <main className={`${styles.page} ${bodyFont.className}`}>
+    <main className={`${styles.page} ${beVietnamPro.className}`}>
       <section className={styles.hero}>
         <div className={styles.heroBackdrop} aria-hidden="true" />
         <div className={styles.container}>
           <div className={styles.heroGrid}>
             <div>
               <span className={styles.heroTag}>Gia sư Song Nguyen EDU</span>
-              <h1 className={`${styles.heroTitle} ${headingFont.className}`}>
+              <h1 className={`${styles.heroTitle} ${beVietnamPro.className}`}>
                 Đồng hành để <span>dạy học thực sự hiệu quả</span>
               </h1>
               <p className={styles.heroDesc}>
