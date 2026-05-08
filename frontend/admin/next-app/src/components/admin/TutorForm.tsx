@@ -2,10 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 
-import type {
-  AdminTutorCreatePayload,
-  AdminTutorUpdatePayload,
-} from "@/lib/adminApi";
+import type { AdminTutorCreatePayload } from "@/lib/adminApi";
 
 const EMPTY_VALUES = {
   fullName: "",
@@ -20,9 +17,7 @@ type TutorFormValues = typeof EMPTY_VALUES;
 type TutorFormProps = {
   initialValues?: Partial<TutorFormValues>;
   submitLabel: string;
-  onSubmit: (
-    payload: AdminTutorCreatePayload | AdminTutorUpdatePayload,
-  ) => Promise<void> | void;
+  onSubmit: (payload: AdminTutorCreatePayload) => Promise<void> | void;
   onCancel?: () => void;
   disabled?: boolean;
   helperText?: string;
