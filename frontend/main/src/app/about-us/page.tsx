@@ -88,4 +88,3 @@ import { redirect } from "next/navigation";
 export default function AboutUsPage() {
   redirect("/gioi-thieu-gia-su-uy-tin");
 }
-    image: image11,
