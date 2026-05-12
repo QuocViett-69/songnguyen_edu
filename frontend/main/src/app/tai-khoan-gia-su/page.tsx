@@ -71,7 +71,7 @@ export default function Dashboard() {
       </div>
 
       <div className="quick-actions">
-        <Link href="/tutor/class-list" className="quick-action">
+        <Link href="/tai-khoan-gia-su/danh-sach-lop" className="quick-action">
           <div className="quick-action-icon"><i className="fas fa-search"></i></div>
           <div className="quick-action-text">
             <h3>Tìm Lớp Phù Hợp</h3>
@@ -79,7 +79,7 @@ export default function Dashboard() {
           </div>
           <div className="quick-action-arrow"><i className="fas fa-chevron-right"></i></div>
         </Link>
-        <Link href="/tutor/profile" className="quick-action">
+        <Link href="/tai-khoan-gia-su/ho-so" className="quick-action">
           <div className="quick-action-icon"><i className="fas fa-edit"></i></div>
           <div className="quick-action-text">
             <h3>Cập Nhật Hồ Sơ</h3>
