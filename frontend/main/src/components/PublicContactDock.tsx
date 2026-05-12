@@ -38,7 +38,7 @@ const contactItems = [
 
 export default function PublicContactDock() {
   const pathname = usePathname();
-  const shouldHideDock = pathname?.startsWith("/tutor") || pathname?.startsWith("/admin");
+  const shouldHideDock = pathname?.startsWith("/tai-khoan-gia-su") || pathname?.startsWith("/admin");
 
   if (shouldHideDock) {
     return null;
